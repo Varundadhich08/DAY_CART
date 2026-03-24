@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Wallet as WalletIcon, Plus, History, CreditCard, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/src/components/AuthProvider";
-import { supabase } from "../lib/supabase";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Input } from "@/src/components/ui/Input";
@@ -19,45 +18,26 @@ export default function Wallet() {
 
   React.useEffect(() => {
     if (user) {
-      const fetchTransactions = async () => {
-        const { data, error } = await supabase
-          .from("wallet_transactions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching transactions:", error);
-        } else {
-          setTransactions(data.map(tx => ({
-            id: tx.id,
-            userId: tx.user_id,
-            amount: tx.amount,
-            type: tx.type,
-            description: tx.description,
-            createdAt: tx.created_at
-          })));
+      // Mock transactions
+      const mockTransactions: WalletTransaction[] = [
+        {
+          id: "1",
+          userId: user.id,
+          amount: 500,
+          type: "credit",
+          description: "Added to Wallet",
+          createdAt: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+          id: "2",
+          userId: user.id,
+          amount: 120,
+          type: "debit",
+          description: "Order Payment #1234",
+          createdAt: new Date(Date.now() - 172800000).toISOString()
         }
-      };
-
-      fetchTransactions();
-
-      // Real-time subscription
-      const channel = supabase
-        .channel('wallet_transactions_changes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'wallet_transactions',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          fetchTransactions();
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      ];
+      setTransactions(mockTransactions);
     }
   }, [user]);
 
@@ -72,30 +52,23 @@ export default function Wallet() {
     try {
       const numAmount = Number(amount);
       
-      // 1. Add transaction record
-      const { error: txError } = await supabase
-        .from("wallet_transactions")
-        .insert({
-          user_id: user.id,
-          amount: numAmount,
-          type: "credit",
-          description: "Added to Wallet",
-          created_at: new Date().toISOString()
-        });
-
-      if (txError) throw txError;
-
-      // 2. Update user balance
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          wallet_balance: (profile.walletBalance || 0) + numAmount
-        })
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
-
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, we'd update the profile state here.
+      // For this mock, we'll just show a success message.
       toast.success(`₹${amount} added to wallet!`);
+      
+      // Update local transactions mock
+      const newTx: WalletTransaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        amount: numAmount,
+        type: "credit",
+        description: "Added to Wallet",
+        createdAt: new Date().toISOString()
+      };
+      setTransactions(prev => [newTx, ...prev]);
       setAmount("");
     } catch (error) {
       console.error("Error adding money:", error);

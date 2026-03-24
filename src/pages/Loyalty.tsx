@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Trophy, Gift, History, Star, ArrowUpRight, ArrowDownLeft, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/src/components/AuthProvider";
-import { supabase } from "../lib/supabase";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Badge } from "@/src/components/ui/Badge";
@@ -17,45 +16,26 @@ export default function Loyalty() {
 
   React.useEffect(() => {
     if (user) {
-      const fetchTransactions = async () => {
-        const { data, error } = await supabase
-          .from("loyalty_transactions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Error fetching loyalty transactions:", error);
-        } else {
-          setTransactions(data.map(tx => ({
-            id: tx.id,
-            userId: tx.user_id,
-            points: tx.points,
-            type: tx.type,
-            description: tx.description,
-            createdAt: tx.created_at
-          })));
+      // Mock transactions
+      const mockTransactions: LoyaltyTransaction[] = [
+        {
+          id: "1",
+          userId: user.id,
+          points: 150,
+          type: "earned",
+          description: "Order #1234 earned points",
+          createdAt: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+          id: "2",
+          userId: user.id,
+          points: 50,
+          type: "earned",
+          description: "Daily streak bonus",
+          createdAt: new Date(Date.now() - 172800000).toISOString()
         }
-      };
-
-      fetchTransactions();
-
-      // Real-time subscription
-      const channel = supabase
-        .channel('loyalty_transactions_changes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'loyalty_transactions',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          fetchTransactions();
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      ];
+      setTransactions(mockTransactions);
     }
   }, [user]);
 
@@ -68,30 +48,23 @@ export default function Loyalty() {
 
     setIsRedeeming(rewardId);
     try {
-      // 1. Add transaction record
-      const { error: txError } = await supabase
-        .from("loyalty_transactions")
-        .insert({
-          user_id: user.id,
-          points: points,
-          type: "redeemed",
-          description: `Redeemed: ${description}`,
-          created_at: new Date().toISOString()
-        });
-
-      if (txError) throw txError;
-
-      // 2. Update user points
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          loyalty_points: (profile.loyaltyPoints || 0) - points
-        })
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
-
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, we'd update the profile state here. 
+      // For this mock, we'll just show a success message.
       toast.success(`Successfully redeemed: ${description}`);
+      
+      // Update local transactions mock
+      const newTx: LoyaltyTransaction = {
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        points: points,
+        type: "redeemed",
+        description: `Redeemed: ${description}`,
+        createdAt: new Date().toISOString()
+      };
+      setTransactions(prev => [newTx, ...prev]);
     } catch (error) {
       console.error("Error redeeming points:", error);
       toast.error("Failed to redeem points. Please try again.");

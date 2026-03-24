@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Mail, Lock, Loader2 } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import { useAuth } from "../components/AuthProvider";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Input } from "@/src/components/ui/Input";
@@ -14,6 +14,7 @@ export default function Auth() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,27 +25,15 @@ export default function Auth() {
 
     setIsLoading(true);
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
-        toast.success("Check your email for the confirmation link!");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        navigate("/");
-      }
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await signIn(email);
+      toast.success(isSignUp ? "Account created successfully!" : "Welcome back!");
+      navigate("/");
     } catch (error: any) {
       console.error("Auth error:", error);
-      toast.error(error.message || "Authentication failed");
+      toast.error("Authentication failed");
     } finally {
       setIsLoading(false);
     }
@@ -53,17 +42,14 @@ export default function Auth() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
-
-      if (error) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      await signIn("google-user@example.com");
+      toast.success("Signed in with Google!");
+      navigate("/");
     } catch (error: any) {
       console.error("Auth error:", error);
-      toast.error(error.message || "Failed to sign in with Google");
+      toast.error("Failed to sign in with Google");
+    } finally {
       setIsLoading(false);
     }
   };
