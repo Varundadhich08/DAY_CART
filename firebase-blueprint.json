@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with wallet and loyalty points",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "walletBalance": { "type": "number" },
+        "loyaltyPoints": { "type": "number" }
+      },
+      "required": ["uid", "email", "walletBalance", "loyaltyPoints"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Grocery product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "isSubscriptionEligible": { "type": "boolean" },
+        "isInstantEligible": { "type": "boolean" },
+        "estimatedDeliveryTime": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "category", "isSubscriptionEligible", "isInstantEligible"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "User subscription to a product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "productPrice": { "type": "number" },
+        "timeSlot": { "type": "string" },
+        "planType": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string" },
+        "totalCost": { "type": "number" }
+      },
+      "required": ["id", "userId", "productId", "timeSlot", "planType", "startDate", "endDate", "status"]
+    },
+    "SubscriptionDay": {
+      "title": "SubscriptionDay",
+      "description": "Individual delivery day for a subscription",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subscriptionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "refundedPoints": { "type": "number" }
+      },
+      "required": ["id", "subscriptionId", "userId", "date", "status"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Instant or subscription delivery order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "type", "items", "totalAmount", "status", "createdAt"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Wallet credit or debit transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "amount", "type", "description", "createdAt"]
+    },
+    "LoyaltyTransaction": {
+      "title": "LoyaltyTransaction",
+      "description": "Loyalty points earned or redeemed",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "points": { "type": "number" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "points", "type", "description", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog"
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": "Subscription",
+      "description": "User subscriptions"
+    },
+    "/subscription_days/{dayId}": {
+      "schema": "SubscriptionDay",
+      "description": "Individual delivery days"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Instant or subscription delivery orders"
+    },
+    "/wallet_transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "Wallet transaction history"
+    },
+    "/loyalty_transactions/{transactionId}": {
+      "schema": "LoyaltyTransaction",
+      "description": "Loyalty points history"
+    }
+  }
+}
