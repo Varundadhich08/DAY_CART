@@ -1,10 +1,12 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingCart, Calendar, Wallet, Trophy, Home, User, Menu, X } from "lucide-react";
+import { ShoppingCart, Calendar, Wallet, Trophy, Home, User, Menu, X, LogOut } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Button } from "./ui/Button";
+import { useAuth } from "./AuthProvider";
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const { profile, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const location = useLocation();
 
@@ -29,25 +31,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                location.pathname === item.path
-                  ? "bg-orange-50 text-orange-600"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <item.icon className="h-4 w-4" />
-                {item.name}
+        <div className="hidden md:flex items-center gap-4">
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  location.pathname === item.path
+                    ? "bg-orange-50 text-orange-600"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                </div>
+              </Link>
+            ))}
+          </nav>
+          
+          {profile && (
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Balance</span>
+                <span className="text-sm font-black text-slate-900">₹{profile.walletBalance}</span>
               </div>
-            </Link>
-          ))}
-        </nav>
+              <Button variant="ghost" size="icon" onClick={signOut} className="text-slate-400 hover:text-red-600">
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Mobile Menu Toggle */}
         <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>

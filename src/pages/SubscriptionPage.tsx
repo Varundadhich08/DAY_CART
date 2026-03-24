@@ -28,6 +28,13 @@ export default function SubscriptionPage() {
   const [planType, setPlanType] = React.useState<PlanType>("Full Month");
   const [selectedDays, setSelectedDays] = React.useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [paymentMethod, setPaymentMethod] = React.useState<"UPI" | "Card">("Card");
+  const [upiId, setUpiId] = React.useState("");
+  const [cardDetails, setCardDetails] = React.useState({
+    number: "",
+    expiry: "",
+    cvv: ""
+  });
 
   const daysInMonth = getDaysInMonth(new Date());
 
@@ -63,11 +70,31 @@ export default function SubscriptionPage() {
       return;
     }
 
+    if (paymentMethod === "UPI" && !upiId.includes("@")) {
+      toast.error("Please enter a valid UPI ID");
+      return;
+    }
+
+    if (paymentMethod === "Card") {
+      if (cardDetails.number.length < 16) {
+        toast.error("Please enter a valid 16-digit card number");
+        return;
+      }
+      if (!cardDetails.expiry.includes("/")) {
+        toast.error("Please enter expiry in MM/YY format");
+        return;
+      }
+      if (cardDetails.cvv.length < 3) {
+        toast.error("Please enter a valid CVV");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsSubmitting(false);
     
-    toast.success("Subscription started successfully!");
+    toast.success(`₹${calculateTotal()} added to wallet! Subscription active.`);
     navigate("/dashboard");
   };
 
@@ -299,24 +326,117 @@ export default function SubscriptionPage() {
                   </div>
 
                   <div className="mt-12 space-y-4">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 shadow-sm">
-                      <div className="bg-slate-100 p-2 rounded-xl">
-                        <CreditCard className="h-5 w-5 text-slate-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Payment Method</p>
-                        <p className="text-sm font-black text-slate-700">DayCart Wallet (₹{profile?.walletBalance ?? 0})</p>
+                    <div className="space-y-3">
+                      <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Select Payment Method</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => setPaymentMethod("UPI")}
+                          className={cn(
+                            "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all bg-white group",
+                            paymentMethod === "UPI" ? "border-orange-600 bg-orange-50" : "border-slate-100 hover:border-orange-500"
+                          )}
+                        >
+                          <div className={cn(
+                            "p-2 rounded-xl transition-colors",
+                            paymentMethod === "UPI" ? "bg-white shadow-sm" : "bg-slate-50 group-hover:bg-orange-50"
+                          )}>
+                            <Zap className={cn("h-4 w-4", paymentMethod === "UPI" ? "text-orange-600" : "text-slate-600 group-hover:text-orange-600")} />
+                          </div>
+                          <span className={cn("text-xs font-black uppercase tracking-widest", paymentMethod === "UPI" ? "text-orange-600" : "text-slate-700")}>UPI</span>
+                        </button>
+                        <button 
+                          onClick={() => setPaymentMethod("Card")}
+                          className={cn(
+                            "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all group",
+                            paymentMethod === "Card" ? "border-orange-600 bg-orange-50" : "border-slate-100 hover:border-orange-500 bg-white"
+                          )}
+                        >
+                          <div className={cn(
+                            "p-2 rounded-xl transition-colors",
+                            paymentMethod === "Card" ? "bg-white shadow-sm" : "bg-slate-50 group-hover:bg-orange-50"
+                          )}>
+                            <CreditCard className={cn("h-4 w-4", paymentMethod === "Card" ? "text-orange-600" : "text-slate-600 group-hover:text-orange-600")} />
+                          </div>
+                          <span className={cn("text-xs font-black uppercase tracking-widest", paymentMethod === "Card" ? "text-orange-600" : "text-slate-700")}>Card</span>
+                        </button>
                       </div>
                     </div>
+
+                    {/* Payment Inputs */}
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      {paymentMethod === "UPI" ? (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">UPI ID</label>
+                          <input 
+                            type="text" 
+                            placeholder="username@bank" 
+                            value={upiId}
+                            onChange={(e) => setUpiId(e.target.value)}
+                            className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Card Number</label>
+                            <input 
+                              type="text" 
+                              placeholder="0000 0000 0000 0000" 
+                              maxLength={16}
+                              value={cardDetails.number}
+                              onChange={(e) => setCardDetails({...cardDetails, number: e.target.value.replace(/\D/g, '')})}
+                              className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Expiry</label>
+                              <input 
+                                type="text" 
+                                placeholder="MM/YY" 
+                                maxLength={5}
+                                value={cardDetails.expiry}
+                                onChange={(e) => setCardDetails({...cardDetails, expiry: e.target.value})}
+                                className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CVV</label>
+                              <input 
+                                type="password" 
+                                placeholder="***" 
+                                maxLength={3}
+                                value={cardDetails.cvv}
+                                onChange={(e) => setCardDetails({...cardDetails, cvv: e.target.value.replace(/\D/g, '')})}
+                                className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4">
+                      <div className="bg-white p-2 rounded-xl shadow-sm mt-0.5">
+                        <Info className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] uppercase font-black text-blue-600 tracking-widest">Smart Wallet Flow</p>
+                        <p className="text-[10px] font-medium text-blue-800 leading-relaxed mt-1">
+                          The product amount will be added to your wallet. Daily cost will be auto-deducted only on delivery. If you skip a day, your money stays safe in your wallet!
+                        </p>
+                      </div>
+                    </div>
+
                     <Button 
                       className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-slate-900 hover:bg-orange-600 transition-all" 
                       onClick={handleConfirm}
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "PROCESSING..." : "CONFIRM SUBSCRIPTION"}
+                      {isSubmitting ? "PROCESSING..." : `PAY ₹${calculateTotal()}`}
                     </Button>
                     <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest">
-                      Secure checkout powered by DayCart Wallet
+                      Secure payment via Razorpay / Stripe
                     </p>
                   </div>
                 </div>

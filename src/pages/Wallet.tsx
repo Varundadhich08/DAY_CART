@@ -1,8 +1,7 @@
 import * as React from "react";
 import { Wallet as WalletIcon, Plus, History, CreditCard, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/src/components/AuthProvider";
-import { db } from "../firebase";
-import { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Input } from "@/src/components/ui/Input";
@@ -20,18 +19,45 @@ export default function Wallet() {
 
   React.useEffect(() => {
     if (user) {
-      const q = query(
-        collection(db, "wallet_transactions"),
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
-      );
+      const fetchTransactions = async () => {
+        const { data, error } = await supabase
+          .from("wallet_transactions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WalletTransaction));
-        setTransactions(txs);
-      });
+        if (error) {
+          console.error("Error fetching transactions:", error);
+        } else {
+          setTransactions(data.map(tx => ({
+            id: tx.id,
+            userId: tx.user_id,
+            amount: tx.amount,
+            type: tx.type,
+            description: tx.description,
+            createdAt: tx.created_at
+          })));
+        }
+      };
 
-      return () => unsubscribe();
+      fetchTransactions();
+
+      // Real-time subscription
+      const channel = supabase
+        .channel('wallet_transactions_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'wallet_transactions',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchTransactions();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 
@@ -40,25 +66,34 @@ export default function Wallet() {
       toast.error("Please enter a valid amount");
       return;
     }
-    if (!user) return;
+    if (!user || !profile) return;
 
     setIsAdding(true);
     try {
       const numAmount = Number(amount);
       
       // 1. Add transaction record
-      await addDoc(collection(db, "wallet_transactions"), {
-        userId: user.uid,
-        amount: numAmount,
-        type: "credit",
-        description: "Added to Wallet",
-        createdAt: new Date().toISOString()
-      });
+      const { error: txError } = await supabase
+        .from("wallet_transactions")
+        .insert({
+          user_id: user.id,
+          amount: numAmount,
+          type: "credit",
+          description: "Added to Wallet",
+          created_at: new Date().toISOString()
+        });
+
+      if (txError) throw txError;
 
       // 2. Update user balance
-      await updateDoc(doc(db, "users", user.uid), {
-        walletBalance: increment(numAmount)
-      });
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          wallet_balance: (profile.walletBalance || 0) + numAmount
+        })
+        .eq("id", user.id);
+
+      if (profileError) throw profileError;
 
       toast.success(`₹${amount} added to wallet!`);
       setAmount("");

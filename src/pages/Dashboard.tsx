@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { format, addDays, isSameDay } from "date-fns";
-import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle, ChevronRight, Pause, Play, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, AlertCircle, ChevronRight, Pause, Play, Trash2, Wallet } from "lucide-react";
+import { useAuth } from "@/src/components/AuthProvider";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Badge } from "@/src/components/ui/Badge";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = React.useState<"active" | "history">("active");
   const [subscriptions, setSubscriptions] = React.useState([
     {
@@ -40,7 +42,7 @@ export default function Dashboard() {
       }
       return sub;
     }));
-    toast.info(`Delivery for ${format(date, "MMM d")} skipped. Next delivery set to ${format(addDays(date, 1), "MMM d")}.`);
+    toast.info(`Delivery for ${format(date, "MMM d")} skipped. Money remains in your wallet!`);
   };
 
   const handleTogglePause = (subId: string) => {
@@ -155,6 +157,15 @@ export default function Dashboard() {
                     )}
                   </div>
 
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="bg-white p-1.5 rounded-lg shadow-sm">
+                      <Wallet className="h-3 w-3 text-slate-400" />
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-tight">
+                      Auto-deducting from wallet per delivery. Skipping preserves balance.
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upcoming Week</p>
                     <div className="flex justify-between">
@@ -209,18 +220,20 @@ export default function Dashboard() {
       )}
 
       {/* Low Wallet Alert Simulation */}
-      <Card className="bg-red-50 border-red-100">
-        <CardContent className="p-4 flex items-center gap-4">
-          <div className="bg-red-100 p-2 rounded-full">
-            <AlertCircle className="h-6 w-6 text-red-600" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-red-900">Low Wallet Balance</h4>
-            <p className="text-sm text-red-700">Your balance is ₹120. Add money to ensure uninterrupted daily deliveries.</p>
-          </div>
-          <Button className="bg-red-600 hover:bg-red-700 text-white font-bold">Add Money</Button>
-        </CardContent>
-      </Card>
+      {profile && profile.walletBalance < 150 && (
+        <Card className="bg-red-50 border-red-100">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="bg-red-100 p-2 rounded-full">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-red-900">Low Wallet Balance</h4>
+              <p className="text-sm text-red-700">Your balance is ₹{profile.walletBalance}. Add money to ensure uninterrupted daily deliveries.</p>
+            </div>
+            <Button className="bg-red-600 hover:bg-red-700 text-white font-bold" onClick={() => navigate("/wallet")}>Add Money</Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

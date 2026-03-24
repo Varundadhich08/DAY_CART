@@ -4,6 +4,7 @@ export interface User {
   displayName: string;
   walletBalance: number;
   loyaltyPoints: number;
+  createdAt?: string;
 }
 
 export interface Product {
@@ -27,12 +28,14 @@ export interface Subscription {
   productId: string;
   productName: string;
   productPrice: number;
+  productImage?: string;
   timeSlot: TimeSlot;
   planType: PlanType;
   startDate: string;
   endDate: string;
   status: "active" | "paused" | "cancelled";
   totalCost: number;
+  nextDelivery?: string;
 }
 
 export interface SubscriptionDay {

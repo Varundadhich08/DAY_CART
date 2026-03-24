@@ -1,8 +1,7 @@
 import * as React from "react";
 import { Trophy, Gift, History, Star, ArrowUpRight, ArrowDownLeft, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/src/components/AuthProvider";
-import { db } from "../firebase";
-import { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, increment } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/src/components/ui/Card";
 import { Badge } from "@/src/components/ui/Badge";
@@ -18,18 +17,45 @@ export default function Loyalty() {
 
   React.useEffect(() => {
     if (user) {
-      const q = query(
-        collection(db, "loyalty_transactions"),
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
-      );
+      const fetchTransactions = async () => {
+        const { data, error } = await supabase
+          .from("loyalty_transactions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LoyaltyTransaction));
-        setTransactions(txs);
-      });
+        if (error) {
+          console.error("Error fetching loyalty transactions:", error);
+        } else {
+          setTransactions(data.map(tx => ({
+            id: tx.id,
+            userId: tx.user_id,
+            points: tx.points,
+            type: tx.type,
+            description: tx.description,
+            createdAt: tx.created_at
+          })));
+        }
+      };
 
-      return () => unsubscribe();
+      fetchTransactions();
+
+      // Real-time subscription
+      const channel = supabase
+        .channel('loyalty_transactions_changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'loyalty_transactions',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchTransactions();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 
@@ -43,18 +69,27 @@ export default function Loyalty() {
     setIsRedeeming(rewardId);
     try {
       // 1. Add transaction record
-      await addDoc(collection(db, "loyalty_transactions"), {
-        userId: user.uid,
-        points: points,
-        type: "redeemed",
-        description: `Redeemed: ${description}`,
-        createdAt: new Date().toISOString()
-      });
+      const { error: txError } = await supabase
+        .from("loyalty_transactions")
+        .insert({
+          user_id: user.id,
+          points: points,
+          type: "redeemed",
+          description: `Redeemed: ${description}`,
+          created_at: new Date().toISOString()
+        });
+
+      if (txError) throw txError;
 
       // 2. Update user points
-      await updateDoc(doc(db, "users", user.uid), {
-        loyaltyPoints: increment(-points)
-      });
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          loyalty_points: (profile.loyaltyPoints || 0) - points
+        })
+        .eq("id", user.id);
+
+      if (profileError) throw profileError;
 
       toast.success(`Successfully redeemed: ${description}`);
     } catch (error) {
