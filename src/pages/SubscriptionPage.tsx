@@ -17,10 +17,19 @@ export default function SubscriptionPage() {
   const { profile, updateBalance } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const productId = searchParams.get("productId");
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(
-    productId ? SAMPLE_PRODUCTS.find(p => p.id === productId) || null : null
-  );
+  const [subsCart, setSubsCart] = React.useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const productId = searchParams.get("productId");
+    if (productId) {
+      const product = SAMPLE_PRODUCTS.find(p => p.id === productId);
+      if (product && !subsCart.some(p => p.id === productId)) {
+        setSubsCart(prev => [...prev, product]);
+      }
+    }
+  }, [searchParams]);
 
   const [showPreview, setShowPreview] = React.useState(false);
 
@@ -57,13 +66,15 @@ export default function SubscriptionPage() {
   };
 
   const calculateTotal = () => {
-    if (!selectedProduct) return 0;
-    const perDayFee = selectedProduct.price > 50 ? 25 : 30;
+    if (subsCart.length === 0) return 0;
+    
+    const productCost = subsCart.reduce((acc, p) => acc + p.price, 0);
+    const perDayFee = productCost > 50 ? 28 : 33;
     
     if (planType === "Full Month") {
-      return (selectedProduct.price * daysInMonth) + 750;
+      return (productCost * daysInMonth) + 750;
     }
-    return selectedDays.length * (selectedProduct.price + perDayFee);
+    return selectedDays.length * (productCost + perDayFee);
   };
 
   const handleConfirm = async () => {
@@ -100,9 +111,12 @@ export default function SubscriptionPage() {
     // Save subscription to localStorage
     const newSub = {
       id: `sub-${Date.now()}`,
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      productImage: selectedProduct.image,
+      items: subsCart.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        image: p.image
+      })),
       timeSlot,
       planType,
       status: "active",
@@ -114,9 +128,7 @@ export default function SubscriptionPage() {
     const existingSubs = JSON.parse(localStorage.getItem("daycart_subscriptions") || "[]");
     localStorage.setItem("daycart_subscriptions", JSON.stringify([...existingSubs, newSub]));
     
-    // Update wallet balance (simulation: adding the amount to wallet then deducting it)
-    // Actually, the user's flow is "Add money -> Subscribe -> Deduction"
-    // So we'll simulate the deduction here.
+    // Update wallet balance
     updateBalance(-total);
     
     // Add transaction history
@@ -125,7 +137,7 @@ export default function SubscriptionPage() {
       id: `tx-${Date.now()}`,
       type: "subscription",
       amount: total,
-      description: `Subscription for ${selectedProduct.name}`,
+      description: `Subscription for ${subsCart.length} items`,
       date: new Date().toISOString(),
       status: "completed"
     };
@@ -133,18 +145,33 @@ export default function SubscriptionPage() {
 
     setIsSubmitting(false);
     toast.success(`₹${total} deducted from wallet. Subscription active!`);
+    setSubsCart([]);
     navigate("/dashboard");
   };
 
-  const openSubscriptionModal = (product: Product) => {
-    setSelectedProduct(product);
-    setSearchParams({ productId: product.id });
+  const toggleSubsCart = (product: Product) => {
+    const exists = subsCart.find(p => p.id === product.id);
+    if (exists) {
+      setSubsCart(subsCart.filter(p => p.id !== product.id));
+      toast.info(`Removed ${product.name} from subscription cart`);
+    } else {
+      setSubsCart([...subsCart, product]);
+      toast.success(`Added ${product.name} to subscription cart`);
+    }
+  };
+
+  const openSubscriptionModal = () => {
+    if (subsCart.length === 0) {
+      toast.error("Please add at least one product to your subscription cart");
+      return;
+    }
+    setIsModalOpen(true);
   };
 
   const closeSubscriptionModal = () => {
-    setSelectedProduct(null);
-    setSearchParams({});
+    setIsModalOpen(false);
     setSelectedDays([]);
+    setShowPreview(false);
   };
 
   return (
@@ -161,41 +188,86 @@ export default function SubscriptionPage() {
 
       {/* Product Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {subscriptionProducts.map((product) => (
-          <motion.div 
-            key={product.id} 
-            whileHover={{ y: -5 }} 
-            transition={{ duration: 0.2 }}
-            onClick={() => openSubscriptionModal(product)}
-          >
-            <Card className="overflow-hidden h-full flex flex-col group cursor-pointer border-slate-200 hover:shadow-xl transition-all rounded-2xl">
-              <div className="aspect-square relative overflow-hidden bg-slate-100">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                />
-                <Badge className="absolute top-2 right-2 bg-orange-600 text-white border-none font-bold">DAILY</Badge>
-              </div>
-              <CardContent className="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="font-black text-slate-900 line-clamp-1 text-lg">{product.name}</h3>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-widest">{product.category}</p>
-                  <p className="text-xl font-black text-slate-900">₹{product.price}</p>
+        {subscriptionProducts.map((product) => {
+          const isInCart = subsCart.some(p => p.id === product.id);
+          return (
+            <motion.div 
+              key={product.id} 
+              whileHover={{ y: -5 }} 
+              transition={{ duration: 0.2 }}
+              onClick={() => toggleSubsCart(product)}
+            >
+              <Card className={cn(
+                "overflow-hidden h-full flex flex-col group cursor-pointer border-slate-200 hover:shadow-xl transition-all rounded-2xl",
+                isInCart && "ring-4 ring-orange-600 ring-offset-2"
+              )}>
+                <div className="aspect-square relative overflow-hidden bg-slate-100">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                  />
+                  <Badge className="absolute top-2 right-2 bg-orange-600 text-white border-none font-bold">DAILY</Badge>
+                  {isInCart && (
+                    <div className="absolute inset-0 bg-orange-600/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-12 w-12 text-orange-600 fill-white" />
+                    </div>
+                  )}
                 </div>
-                <Button variant="outline" className="w-full mt-4 border-2 border-orange-200 text-orange-600 hover:bg-orange-50 font-black rounded-xl">
-                  SUBSCRIBE
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                <CardContent className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-black text-slate-900 line-clamp-1 text-lg">{product.name}</h3>
+                    <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-widest">{product.category}</p>
+                    <p className="text-xl font-black text-slate-900">₹{product.price}</p>
+                  </div>
+                  <Button 
+                    variant={isInCart ? "primary" : "outline"}
+                    className={cn(
+                      "w-full mt-4 font-black rounded-xl",
+                      !isInCart && "border-2 border-orange-200 text-orange-600 hover:bg-orange-50"
+                    )}
+                  >
+                    {isInCart ? "ADDED" : "ADD TO SUBS"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
+
+      {/* Floating Cart Button */}
+      {subsCart.length > 0 && (
+        <motion.div 
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed bottom-24 md:bottom-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4"
+        >
+          <Button 
+            onClick={openSubscriptionModal}
+            className="w-full h-16 rounded-3xl bg-slate-900 text-white shadow-2xl flex items-center justify-between px-8 group hover:bg-orange-600 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-600 p-2 rounded-xl group-hover:bg-white transition-colors">
+                <Zap className="h-5 w-5 text-white group-hover:text-orange-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-black uppercase tracking-widest opacity-70">Subscription Cart</p>
+                <p className="font-black text-lg">{subsCart.length} Items Selected</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-xl">₹{subsCart.reduce((acc, p) => acc + p.price, 0)}/day</span>
+              <ChevronLeft className="h-5 w-5 rotate-180" />
+            </div>
+          </Button>
+        </motion.div>
+      )}
 
       {/* Subscription Modal */}
       <AnimatePresence>
-        {selectedProduct && (
+        {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
@@ -220,16 +292,18 @@ export default function SubscriptionPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 {/* Left: Product Info & Options */}
                 <div className="p-8 space-y-8 border-r border-slate-100">
-                  <div className="flex gap-6 items-start">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 shadow-inner">
-                      <img src={selectedProduct.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                    <div>
-                      <Badge className="bg-orange-100 text-orange-600 border-none mb-2 font-bold uppercase tracking-widest text-[10px]">
-                        {selectedProduct.category}
-                      </Badge>
-                      <h2 className="text-2xl font-black text-slate-900 tracking-tight">{selectedProduct.name}</h2>
-                      <p className="text-sm text-slate-500 font-medium">{selectedProduct.description}</p>
+                  <div className="space-y-4">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Subscription Items</h2>
+                    <div className="flex flex-wrap gap-3">
+                      {subsCart.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                          <img src={p.image} className="w-10 h-10 rounded-lg object-cover" />
+                          <span className="text-xs font-black text-slate-700">{p.name}</span>
+                          <button onClick={() => setSubsCart(subsCart.filter(item => item.id !== p.id))} className="p-1 hover:text-red-600">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -294,7 +368,7 @@ export default function SubscriptionPage() {
                       >
                         <div>
                           <p className={cn("font-black text-lg", planType === "Custom Days" ? "text-orange-600" : "text-slate-900")}>Custom Days</p>
-                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">₹{selectedProduct.price > 50 ? 25 : 30} Fee + Product Price per day</p>
+                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">₹28 (if &gt;₹50) or ₹33 Fee + Product Price per day</p>
                         </div>
                         {planType === "Custom Days" && <CheckCircle2 className="h-6 w-6 text-orange-600" />}
                       </button>
@@ -318,8 +392,8 @@ export default function SubscriptionPage() {
                     <h3 className="text-xl font-black text-slate-900 tracking-tight">Subscription Summary</h3>
                     <div className="space-y-4">
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Product Price</span>
-                        <span className="font-black text-slate-900">₹{selectedProduct.price}</span>
+                        <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Daily Product Total</span>
+                        <span className="font-black text-slate-900">₹{subsCart.reduce((acc, p) => acc + p.price, 0)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Plan Type</span>
@@ -333,14 +407,14 @@ export default function SubscriptionPage() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Monthly Product Cost ({daysInMonth} days)</span>
-                            <span className="font-black text-slate-900">₹{selectedProduct.price * daysInMonth}</span>
+                            <span className="font-black text-slate-900">₹{subsCart.reduce((acc, p) => acc + p.price, 0) * daysInMonth}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="flex justify-between text-sm">
-                            <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Per Day Service Fee</span>
-                            <span className="font-black text-slate-900">₹{selectedProduct.price > 50 ? 25 : 30}</span>
+                            <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Daily Service Fee</span>
+                            <span className="font-black text-slate-900">₹{subsCart.reduce((acc, p) => acc + p.price, 0) > 50 ? 28 : 33}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Selected Days</span>

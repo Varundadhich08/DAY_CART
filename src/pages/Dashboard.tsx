@@ -116,18 +116,22 @@ export default function Dashboard() {
                   .filter(s => s.status === "active")
                   .sort((a, b) => a.nextDelivery.getTime() - b.nextDelivery.getTime())
                   .slice(0, 3)
-                  .map(sub => (
-                    <Card key={`upcoming-${sub.id}`} className="bg-orange-50 border-orange-100 rounded-2xl p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                        <img src={sub.productImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{format(sub.nextDelivery, "EEEE")}</p>
-                        <p className="text-sm font-black text-slate-900">{sub.productName}</p>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase">{sub.timeSlot}</p>
-                      </div>
-                    </Card>
-                  ))}
+                  .map(sub => {
+                    const firstItem = sub.items?.[0] || { name: sub.productName, image: sub.productImage };
+                    const itemCount = sub.items?.length || 1;
+                    return (
+                      <Card key={`upcoming-${sub.id}`} className="bg-orange-50 border-orange-100 rounded-2xl p-4 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                          <img src={firstItem.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{format(sub.nextDelivery, "EEEE")}</p>
+                          <p className="text-sm font-black text-slate-900">{itemCount > 1 ? `${itemCount} Items` : firstItem.name}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase">{sub.timeSlot}</p>
+                        </div>
+                      </Card>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -139,25 +143,39 @@ export default function Dashboard() {
               <Button onClick={() => navigate("/subscription")} variant="outline" className="font-black rounded-xl">BROWSE PLANS</Button>
             </div>
           ) : (
-            subscriptions.map((sub) => (
-              <Card key={sub.id} className={cn(
-                "overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-all rounded-[2rem]",
-                sub.status === "paused" && "opacity-75 grayscale-[0.5]"
-              )}>
-                <CardHeader className="flex flex-row items-start gap-4 pb-4">
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 shadow-inner">
-                    <img src={sub.productImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-black text-lg text-slate-900 tracking-tight">{sub.productName}</h3>
-                      <Badge className={cn(
-                        "rounded-full font-black text-[10px] uppercase tracking-widest px-3",
-                        sub.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                      )}>
-                        {sub.status}
-                      </Badge>
+            subscriptions.map((sub) => {
+              const items = sub.items || [{ name: sub.productName, image: sub.productImage, price: sub.productPrice || 0 }];
+              const firstItem = items[0];
+              const itemCount = items.length;
+
+              return (
+                <Card key={sub.id} className={cn(
+                  "overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-all rounded-[2rem]",
+                  sub.status === "paused" && "opacity-75 grayscale-[0.5]"
+                )}>
+                  <CardHeader className="flex flex-row items-start gap-4 pb-4">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 flex-shrink-0 shadow-inner">
+                      <img src={firstItem.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <h3 className="font-black text-lg text-slate-900 tracking-tight">
+                            {itemCount > 1 ? `${itemCount} Items Subscription` : firstItem.name}
+                          </h3>
+                          {itemCount > 1 && (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              {items.map((i: any) => i.name).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                        <Badge className={cn(
+                          "rounded-full font-black text-[10px] uppercase tracking-widest px-3",
+                          sub.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                        )}>
+                          {sub.status}
+                        </Badge>
+                      </div>
                     <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">
                       <Clock className="h-3 w-3" />
                       <span>{sub.timeSlot}</span>
@@ -239,8 +257,9 @@ export default function Dashboard() {
                   </Button>
                 </CardFooter>
               </Card>
-            ))
-          )}
+            );
+          })
+        )}
           </div>
         </div>
       ) : (
