@@ -12,7 +12,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { name: "Home", path: "/", icon: Home },
-    { name: "Subscriptions", path: "/subscriptions", icon: Calendar },
+    { name: "Subscriptions", path: "/subscription", icon: Calendar },
     { name: "Cart", path: "/cart", icon: ShoppingCart },
     { name: "Wallet", path: "/wallet", icon: Wallet },
     { name: "Loyalty", path: "/loyalty", icon: Trophy },

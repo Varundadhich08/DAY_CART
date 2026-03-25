@@ -14,50 +14,64 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = React.useState<"active" | "history">("active");
-  const [subscriptions, setSubscriptions] = React.useState([
-    {
-      id: "s1",
-      productName: "Fresh Milk (1L)",
-      productImage: "https://images.unsplash.com/photo-1550583724-125581f77833?auto=format&fit=crop&w=800&q=80",
-      timeSlot: "Morning (6–8 AM)",
-      planType: "Full Month",
-      status: "active" as "active" | "paused",
-      nextDelivery: addDays(new Date(), 1),
-    },
-    {
-      id: "s2",
-      productName: "Organic Eggs (6pcs)",
-      productImage: "https://images.unsplash.com/photo-1516746157585-fa5f4532902a?auto=format&fit=crop&w=800&q=80",
-      timeSlot: "Morning (6–8 AM)",
-      planType: "Custom Days",
-      status: "active" as "active" | "paused",
-      nextDelivery: addDays(new Date(), 2),
+  const [subscriptions, setSubscriptions] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const savedSubs = localStorage.getItem("daycart_subscriptions");
+    if (savedSubs) {
+      const parsed = JSON.parse(savedSubs);
+      // Ensure nextDelivery is a Date object
+      setSubscriptions(parsed.map((s: any) => ({
+        ...s,
+        nextDelivery: new Date(s.nextDelivery)
+      })));
+    } else {
+      // Default demo data if none exists
+      const demoSubs = [
+        {
+          id: "s1",
+          productName: "Fresh Milk (1L)",
+          productImage: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=500",
+          timeSlot: "Morning (6–8 AM)",
+          planType: "Full Month",
+          status: "active",
+          nextDelivery: addDays(new Date(), 1),
+        }
+      ];
+      setSubscriptions(demoSubs);
+      localStorage.setItem("daycart_subscriptions", JSON.stringify(demoSubs));
     }
-  ]);
+  }, []);
 
   const handleCancelDay = (subId: string, date: Date) => {
-    setSubscriptions(prev => prev.map(sub => {
+    const updated = subscriptions.map(sub => {
       if (sub.id === subId) {
         return { ...sub, nextDelivery: addDays(sub.nextDelivery, 1) };
       }
       return sub;
-    }));
+    });
+    setSubscriptions(updated);
+    localStorage.setItem("daycart_subscriptions", JSON.stringify(updated));
     toast.info(`Delivery for ${format(date, "MMM d")} skipped. Money remains in your wallet!`);
   };
 
   const handleTogglePause = (subId: string) => {
-    setSubscriptions(prev => prev.map(sub => {
+    const updated = subscriptions.map(sub => {
       if (sub.id === subId) {
         const newStatus = sub.status === "active" ? "paused" : "active";
         toast.success(`Subscription ${newStatus === "active" ? "resumed" : "paused"} successfully.`);
         return { ...sub, status: newStatus };
       }
       return sub;
-    }));
+    });
+    setSubscriptions(updated);
+    localStorage.setItem("daycart_subscriptions", JSON.stringify(updated));
   };
 
   const handleCancelSubscription = (subId: string) => {
-    setSubscriptions(prev => prev.filter(sub => sub.id !== subId));
+    const updated = subscriptions.filter(sub => sub.id !== subId);
+    setSubscriptions(updated);
+    localStorage.setItem("daycart_subscriptions", JSON.stringify(updated));
     toast.error("Subscription cancelled and removed.");
   };
 
@@ -89,11 +103,40 @@ export default function Dashboard() {
       </div>
 
       {activeTab === "active" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-8">
+          {/* Upcoming Deliveries Section */}
+          {subscriptions.some(s => s.status === "active") && (
+            <div className="space-y-4">
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-orange-600" />
+                Upcoming Deliveries
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {subscriptions
+                  .filter(s => s.status === "active")
+                  .sort((a, b) => a.nextDelivery.getTime() - b.nextDelivery.getTime())
+                  .slice(0, 3)
+                  .map(sub => (
+                    <Card key={`upcoming-${sub.id}`} className="bg-orange-50 border-orange-100 rounded-2xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={sub.productImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{format(sub.nextDelivery, "EEEE")}</p>
+                        <p className="text-sm font-black text-slate-900">{sub.productName}</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">{sub.timeSlot}</p>
+                      </div>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {subscriptions.length === 0 ? (
             <div className="col-span-full py-20 text-center space-y-4 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
               <p className="text-slate-400 font-bold uppercase tracking-widest">No active subscriptions</p>
-              <Button onClick={() => navigate("/subscribe")} variant="outline" className="font-black rounded-xl">BROWSE PLANS</Button>
+              <Button onClick={() => navigate("/subscription")} variant="outline" className="font-black rounded-xl">BROWSE PLANS</Button>
             </div>
           ) : (
             subscriptions.map((sub) => (
@@ -198,6 +241,7 @@ export default function Dashboard() {
               </Card>
             ))
           )}
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

@@ -28,12 +28,31 @@ export default function Auth() {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Basic validation for demo purposes
+      if (email.includes("error")) {
+        throw new Error("Invalid credentials. Please try again.");
+      }
+      
       await signIn(email);
       toast.success(isSignUp ? "Account created successfully!" : "Welcome back!");
       navigate("/");
     } catch (error: any) {
       console.error("Auth error:", error);
-      toast.error("Authentication failed");
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await signIn("demo@daycart.com");
+      toast.success("Welcome to the Demo!");
+      navigate("/");
+    } catch (error: any) {
+      toast.error("Demo login failed");
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +146,24 @@ export default function Auth() {
               )}
             </Button>
           </form>
+
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest">
+              <span className="bg-white px-4 text-slate-400">Or try the demo</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full h-11 gap-3 font-black uppercase tracking-widest border-orange-200 text-orange-600 hover:bg-orange-50"
+            onClick={handleDemoLogin}
+            disabled={isLoading}
+          >
+            Try Demo Mode
+          </Button>
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">

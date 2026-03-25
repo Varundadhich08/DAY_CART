@@ -7,6 +7,9 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   signIn: (email: string) => Promise<void>;
+  updateBalance: (amount: number) => void;
+  updateLoyaltyPoints: (points: number) => void;
+  resetDemo: () => void;
 }
 
 const AuthContext = React.createContext<AuthContextType>({
@@ -15,16 +18,19 @@ const AuthContext = React.createContext<AuthContextType>({
   loading: true,
   signOut: async () => {},
   signIn: async () => {},
+  updateBalance: () => {},
+  updateLoyaltyPoints: () => {},
+  resetDemo: () => {},
 });
 
 export const useAuth = () => React.useContext(AuthContext);
 
 const MOCK_USER: User = {
-  uid: "mock-user-123",
+  uid: "demo-user-123",
   email: "demo@daycart.com",
   displayName: "Demo User",
-  walletBalance: 500,
-  loyaltyPoints: 120,
+  walletBalance: 1250,
+  loyaltyPoints: 450,
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,6 +51,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(newUser);
   };
 
+  const updateBalance = (amount: number) => {
+    setProfile(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, walletBalance: prev.walletBalance + amount };
+      localStorage.setItem("daycart_user", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const updateLoyaltyPoints = (points: number) => {
+    setProfile(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, loyaltyPoints: prev.loyaltyPoints + points };
+      localStorage.setItem("daycart_user", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const resetDemo = () => {
+    localStorage.removeItem("daycart_user");
+    localStorage.removeItem("daycart_subscriptions");
+    localStorage.removeItem("daycart_transactions");
+    localStorage.removeItem("daycart_loyalty_transactions");
+    window.location.reload();
+  };
+
   React.useEffect(() => {
     const savedUser = localStorage.getItem("daycart_user");
     if (savedUser) {
@@ -56,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, signIn }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, signIn, updateBalance, updateLoyaltyPoints, resetDemo }}>
       {children}
     </AuthContext.Provider>
   );

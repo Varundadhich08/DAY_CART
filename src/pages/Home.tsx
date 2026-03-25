@@ -22,19 +22,27 @@ import { toast } from "sonner";
 
 export default function Home() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, signIn } = useAuth();
   const { cart, updateQuantity, totalItems, addToCart } = useCart();
+
+  const handleStartDemo = async () => {
+    if (!profile) {
+      await signIn("demo@daycart.com");
+      toast.success("Demo started! Welcome to DayCart.");
+    }
+    navigate("/instant");
+  };
 
   const getQuantity = (id: string) => {
     return cart.find(item => item.id === id)?.quantity || 0;
   };
 
   const categories = [
-    { name: "Fruits", color: "bg-red-50", image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=400&h=400&q=80" },
-    { name: "Vegetables", color: "bg-green-50", image: "https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?auto=format&fit=crop&w=400&h=400&q=80" },
-    { name: "Dairy", color: "bg-blue-50", image: "https://images.unsplash.com/photo-1550583724-125581f77833?auto=format&fit=crop&w=400&h=400&q=80" },
+    { name: "Fruits", color: "bg-red-50", image: "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&h=400&q=80" },
+    { name: "Vegetables", color: "bg-green-50", image: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=400&h=400&q=80" },
+    { name: "Dairy", color: "bg-blue-50", image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=400&h=400&q=80" },
     { name: "Bakery", color: "bg-orange-50", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&h=400&q=80" },
-    { name: "Snacks", color: "bg-yellow-50", image: "https://images.unsplash.com/photo-1599490659213-e2b9527bb087?auto=format&fit=crop&w=400&h=400&q=80" },
+    { name: "Snacks", color: "bg-yellow-50", image: "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=500" },
     { name: "Beverages", color: "bg-purple-50", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=400&h=400&q=80" },
   ];
 
@@ -74,24 +82,67 @@ export default function Home() {
                 DAY<span className="text-orange-500">CART</span>
               </motion.h1>
               
-              <p className="text-[10px] md:text-lg text-white font-black uppercase tracking-[0.1em] md:tracking-[0.3em] opacity-90 mt-1">
-                Everyday Groceries <span className="text-orange-500 italic">Made Easy</span>
+              <p className="text-[12px] md:text-2xl text-orange-400 font-serif italic tracking-wider opacity-100 mt-2 drop-shadow-sm">
+                Automate your daily grocery essentials
               </p>
             </div>
 
-            <Button 
-              size="sm"
-              onClick={() => navigate("/instant")}
-              className="bg-white text-black hover:bg-orange-500 hover:text-white transition-all duration-300 font-black rounded-full px-4 md:px-6 h-8 md:h-10 text-[8px] md:text-[10px] uppercase tracking-widest shadow-lg group w-fit"
-            >
-              Shop Now
-              <ArrowRight className="ml-1.5 h-3 w-3 md:h-4 md:w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                size="sm"
+                onClick={handleStartDemo}
+                className="bg-orange-500 text-white hover:bg-white hover:text-black transition-all duration-300 font-black rounded-full px-4 md:px-8 h-8 md:h-12 text-[8px] md:text-xs uppercase tracking-widest shadow-lg group w-fit"
+              >
+                Start Demo
+                <ArrowRight className="ml-1.5 h-3 w-3 md:h-4 md:w-4 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
 
-      {/* 2. Compact Wallet & Loyalty Section */}
+      {/* 2. Concept Clarity: Subscription vs Instant */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card className="bg-orange-50/50 border-orange-100 rounded-2xl overflow-hidden p-3 relative group hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="bg-orange-500 text-white p-1.5 rounded-lg flex-shrink-0">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Smart Subs</h3>
+              <p className="text-[9px] text-slate-500 font-bold leading-none">Milk, bread, eggs daily.</p>
+            </div>
+            <Button 
+              size="sm"
+              onClick={() => navigate("/subscription")}
+              className="bg-slate-900 text-white hover:bg-orange-600 rounded-full text-[7px] font-black uppercase tracking-widest h-6 px-2"
+            >
+              Manage
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="bg-blue-50/50 border-blue-100 rounded-2xl overflow-hidden p-3 relative group hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="bg-blue-500 text-white p-1.5 rounded-lg flex-shrink-0">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Instant</h3>
+              <p className="text-[9px] text-slate-500 font-bold leading-none">Delivered in 15 mins.</p>
+            </div>
+            <Button 
+              size="sm"
+              onClick={() => navigate("/instant")}
+              className="bg-slate-900 text-white hover:bg-blue-600 rounded-full text-[7px] font-black uppercase tracking-widest h-6 px-2"
+            >
+              Order
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* 3. Compact Wallet & Loyalty Section */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="bg-slate-900 text-white border-none rounded-2xl overflow-hidden shadow-md group cursor-pointer" onClick={() => navigate("/wallet")}>
           <CardContent className="p-3 md:p-4 flex items-center justify-between">
@@ -200,7 +251,7 @@ export default function Home() {
                     <Button 
                       size="sm" 
                       onClick={() => addToCart(product)}
-                      className="h-8 md:h-10 px-4 rounded-xl bg-slate-900 text-white hover:bg-orange-600 text-[10px] md:text-xs font-black uppercase tracking-widest"
+                      className="h-8 md:h-10 px-6 rounded-xl bg-slate-900 text-white hover:bg-orange-600 text-[10px] md:text-xs font-black uppercase tracking-widest"
                     >
                       ADD
                     </Button>

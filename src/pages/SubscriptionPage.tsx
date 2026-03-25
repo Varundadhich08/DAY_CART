@@ -14,13 +14,15 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/src/components/AuthProvider";
 
 export default function SubscriptionPage() {
-  const { profile } = useAuth();
+  const { profile, updateBalance } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const productId = searchParams.get("productId");
   const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(
     productId ? SAMPLE_PRODUCTS.find(p => p.id === productId) || null : null
   );
+
+  const [showPreview, setShowPreview] = React.useState(false);
 
   const subscriptionProducts = SAMPLE_PRODUCTS.filter((p) => p.isSubscriptionEligible);
 
@@ -92,9 +94,45 @@ export default function SubscriptionPage() {
 
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
     
-    toast.success(`₹${calculateTotal()} added to wallet! Subscription active.`);
+    const total = calculateTotal();
+    
+    // Save subscription to localStorage
+    const newSub = {
+      id: `sub-${Date.now()}`,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      productImage: selectedProduct.image,
+      timeSlot,
+      planType,
+      status: "active",
+      nextDelivery: addDays(new Date(), 1),
+      totalPaid: total,
+      createdAt: new Date().toISOString()
+    };
+    
+    const existingSubs = JSON.parse(localStorage.getItem("daycart_subscriptions") || "[]");
+    localStorage.setItem("daycart_subscriptions", JSON.stringify([...existingSubs, newSub]));
+    
+    // Update wallet balance (simulation: adding the amount to wallet then deducting it)
+    // Actually, the user's flow is "Add money -> Subscribe -> Deduction"
+    // So we'll simulate the deduction here.
+    updateBalance(-total);
+    
+    // Add transaction history
+    const existingTx = JSON.parse(localStorage.getItem("daycart_transactions") || "[]");
+    const newTx = {
+      id: `tx-${Date.now()}`,
+      type: "subscription",
+      amount: total,
+      description: `Subscription for ${selectedProduct.name}`,
+      date: new Date().toISOString(),
+      status: "completed"
+    };
+    localStorage.setItem("daycart_transactions", JSON.stringify([newTx, ...existingTx]));
+
+    setIsSubmitting(false);
+    toast.success(`₹${total} deducted from wallet. Subscription active!`);
     navigate("/dashboard");
   };
 
@@ -326,117 +364,59 @@ export default function SubscriptionPage() {
                   </div>
 
                   <div className="mt-12 space-y-4">
-                    <div className="space-y-3">
-                      <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest">Select Payment Method</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button 
-                          onClick={() => setPaymentMethod("UPI")}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all bg-white group",
-                            paymentMethod === "UPI" ? "border-orange-600 bg-orange-50" : "border-slate-100 hover:border-orange-500"
-                          )}
-                        >
-                          <div className={cn(
-                            "p-2 rounded-xl transition-colors",
-                            paymentMethod === "UPI" ? "bg-white shadow-sm" : "bg-slate-50 group-hover:bg-orange-50"
-                          )}>
-                            <Zap className={cn("h-4 w-4", paymentMethod === "UPI" ? "text-orange-600" : "text-slate-600 group-hover:text-orange-600")} />
+                    {!showPreview ? (
+                      <Button 
+                        className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-slate-900 hover:bg-orange-600 transition-all" 
+                        onClick={() => {
+                          if (profile && profile.walletBalance < calculateTotal()) {
+                            toast.error("Insufficient balance! Please top up your wallet.");
+                            navigate("/wallet");
+                            return;
+                          }
+                          setShowPreview(true);
+                        }}
+                      >
+                        PROCEED TO PREVIEW
+                      </Button>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="bg-orange-50 p-4 rounded-2xl border-2 border-orange-200 space-y-2">
+                          <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Wallet Summary</p>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500 font-bold">Current Balance</span>
+                            <span className="font-black text-slate-900">₹{profile?.walletBalance}</span>
                           </div>
-                          <span className={cn("text-xs font-black uppercase tracking-widest", paymentMethod === "UPI" ? "text-orange-600" : "text-slate-700")}>UPI</span>
-                        </button>
-                        <button 
-                          onClick={() => setPaymentMethod("Card")}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all group",
-                            paymentMethod === "Card" ? "border-orange-600 bg-orange-50" : "border-slate-100 hover:border-orange-500 bg-white"
-                          )}
-                        >
-                          <div className={cn(
-                            "p-2 rounded-xl transition-colors",
-                            paymentMethod === "Card" ? "bg-white shadow-sm" : "bg-slate-50 group-hover:bg-orange-50"
-                          )}>
-                            <CreditCard className={cn("h-4 w-4", paymentMethod === "Card" ? "text-orange-600" : "text-slate-600 group-hover:text-orange-600")} />
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500 font-bold">Deduction</span>
+                            <span className="font-black text-red-600">- ₹{calculateTotal()}</span>
                           </div>
-                          <span className={cn("text-xs font-black uppercase tracking-widest", paymentMethod === "Card" ? "text-orange-600" : "text-slate-700")}>Card</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Payment Inputs */}
-                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                      {paymentMethod === "UPI" ? (
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">UPI ID</label>
-                          <input 
-                            type="text" 
-                            placeholder="username@bank" 
-                            value={upiId}
-                            onChange={(e) => setUpiId(e.target.value)}
-                            className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Card Number</label>
-                            <input 
-                              type="text" 
-                              placeholder="0000 0000 0000 0000" 
-                              maxLength={16}
-                              value={cardDetails.number}
-                              onChange={(e) => setCardDetails({...cardDetails, number: e.target.value.replace(/\D/g, '')})}
-                              className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Expiry</label>
-                              <input 
-                                type="text" 
-                                placeholder="MM/YY" 
-                                maxLength={5}
-                                value={cardDetails.expiry}
-                                onChange={(e) => setCardDetails({...cardDetails, expiry: e.target.value})}
-                                className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CVV</label>
-                              <input 
-                                type="password" 
-                                placeholder="***" 
-                                maxLength={3}
-                                value={cardDetails.cvv}
-                                onChange={(e) => setCardDetails({...cardDetails, cvv: e.target.value.replace(/\D/g, '')})}
-                                className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:outline-none font-bold text-slate-700 transition-all"
-                              />
-                            </div>
+                          <div className="h-px bg-orange-200 my-2" />
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-900 font-black">Final Balance</span>
+                            <span className="font-black text-green-600">₹{(profile?.walletBalance || 0) - calculateTotal()}</span>
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-4">
-                      <div className="bg-white p-2 rounded-xl shadow-sm mt-0.5">
-                        <Info className="h-4 w-4 text-blue-600" />
+                        
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline"
+                            className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest border-slate-200"
+                            onClick={() => setShowPreview(false)}
+                          >
+                            BACK
+                          </Button>
+                          <Button 
+                            className="flex-[2] h-14 rounded-2xl text-lg font-black shadow-xl bg-orange-600 hover:bg-orange-700 transition-all" 
+                            onClick={handleConfirm}
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? "CONFIRMING..." : "CONFIRM & PAY"}
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] uppercase font-black text-blue-600 tracking-widest">Smart Wallet Flow</p>
-                        <p className="text-[10px] font-medium text-blue-800 leading-relaxed mt-1">
-                          The product amount will be added to your wallet. Daily cost will be auto-deducted only on delivery. If you skip a day, your money stays safe in your wallet!
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button 
-                      className="w-full h-14 rounded-2xl text-lg font-black shadow-xl bg-slate-900 hover:bg-orange-600 transition-all" 
-                      onClick={handleConfirm}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "PROCESSING..." : `PAY ₹${calculateTotal()}`}
-                    </Button>
+                    )}
                     <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest">
-                      Secure payment via Razorpay / Stripe
+                      Secure payment via DayCart Wallet
                     </p>
                   </div>
                 </div>

@@ -37,7 +37,7 @@ function AppRoutes() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/subscriptions" element={<SubscriptionPage />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
                 <Route path="/instant" element={<InstantPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/cart" element={<InstantCart />} />

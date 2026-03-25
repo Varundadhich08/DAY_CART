@@ -10,32 +10,27 @@ import { toast } from "sonner";
 import { LoyaltyTransaction } from "../types";
 
 export default function Loyalty() {
-  const { user, profile } = useAuth();
-  const [transactions, setTransactions] = React.useState<LoyaltyTransaction[]>([]);
+  const { user, profile, updateLoyaltyPoints } = useAuth();
+  const [transactions, setTransactions] = React.useState<any[]>([]);
   const [isRedeeming, setIsRedeeming] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (user) {
-      // Mock transactions
-      const mockTransactions: LoyaltyTransaction[] = [
+    const savedTx = JSON.parse(localStorage.getItem("daycart_loyalty_transactions") || "[]");
+    if (savedTx.length === 0 && user) {
+      const mockTransactions = [
         {
           id: "1",
           userId: user.id,
           points: 150,
           type: "earned",
-          description: "Order #1234 earned points",
-          createdAt: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          id: "2",
-          userId: user.id,
-          points: 50,
-          type: "earned",
-          description: "Daily streak bonus",
-          createdAt: new Date(Date.now() - 172800000).toISOString()
+          description: "Initial Demo Points",
+          date: new Date(Date.now() - 86400000).toISOString()
         }
       ];
       setTransactions(mockTransactions);
+      localStorage.setItem("daycart_loyalty_transactions", JSON.stringify(mockTransactions));
+    } else {
+      setTransactions(savedTx);
     }
   }, [user]);
 
@@ -48,26 +43,26 @@ export default function Loyalty() {
 
     setIsRedeeming(rewardId);
     try {
-      // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // In a real app, we'd update the profile state here. 
-      // For this mock, we'll just show a success message.
-      toast.success(`Successfully redeemed: ${description}`);
+      updateLoyaltyPoints(-points);
       
-      // Update local transactions mock
-      const newTx: LoyaltyTransaction = {
-        id: Math.random().toString(36).substr(2, 9),
+      const newTx = {
+        id: `ltx-${Date.now()}`,
         userId: user.id,
         points: points,
         type: "redeemed",
         description: `Redeemed: ${description}`,
-        createdAt: new Date().toISOString()
+        date: new Date().toISOString()
       };
-      setTransactions(prev => [newTx, ...prev]);
+      
+      const updatedTx = [newTx, ...transactions];
+      setTransactions(updatedTx);
+      localStorage.setItem("daycart_loyalty_transactions", JSON.stringify(updatedTx));
+      
+      toast.success(`Successfully redeemed: ${description}`);
     } catch (error) {
-      console.error("Error redeeming points:", error);
-      toast.error("Failed to redeem points. Please try again.");
+      toast.error("Failed to redeem points.");
     } finally {
       setIsRedeeming(null);
     }
@@ -80,43 +75,51 @@ export default function Loyalty() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12 px-4">
       <div className="flex items-center gap-4">
-        <div className="bg-yellow-100 p-2 rounded-lg">
-          <Trophy className="h-6 w-6 text-yellow-600" />
+        <div className="bg-slate-900 p-3 rounded-2xl shadow-lg">
+          <Trophy className="h-6 w-6 text-orange-500" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900">Loyalty Rewards</h1>
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Loyalty Rewards</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Earn points with every delivery</p>
+        </div>
       </div>
 
       {/* Points Overview */}
-      <Card className="bg-slate-900 text-white border-none overflow-hidden relative">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
+      <Card className="bg-slate-900 text-white border-none rounded-[2rem] overflow-hidden relative group shadow-2xl">
+        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
           <Trophy className="h-48 w-48" />
         </div>
-        <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-          <div className="text-center md:text-left space-y-2">
-            <p className="text-slate-400 font-medium uppercase tracking-widest text-sm">Available Points</p>
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Star className="h-8 w-8 text-yellow-500 fill-yellow-500" />
-              <span className="text-6xl font-black">{profile?.loyaltyPoints ?? 0}</span>
+        <CardContent className="p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+          <div className="text-center md:text-left space-y-4">
+            <p className="text-white/50 font-black uppercase tracking-[0.2em] text-xs">Available Points</p>
+            <div className="flex items-center justify-center md:justify-start gap-4">
+              <Star className="h-10 w-10 text-orange-500 fill-orange-500 animate-pulse" />
+              <span className="text-7xl md:text-8xl font-black tracking-tighter">{profile?.loyaltyPoints ?? 0}</span>
             </div>
-            <p className="text-slate-400 text-sm">You're in the <span className="text-yellow-500 font-bold">Gold Tier</span></p>
+            <div className="flex items-center gap-2 justify-center md:justify-start">
+              <Badge className="bg-orange-500 text-white border-none font-black px-3 py-1 uppercase tracking-widest text-[10px]">
+                GOLD TIER
+              </Badge>
+              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Top 5% of Users</p>
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 w-full md:w-auto">
-            <h4 className="font-bold mb-4 flex items-center gap-2">
-              <Gift className="h-5 w-5 text-yellow-500" /> How to earn?
+          <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2rem] border border-white/10 w-full md:w-auto max-w-sm">
+            <h4 className="font-black text-lg mb-6 flex items-center gap-3 uppercase tracking-tight">
+              <Gift className="h-6 w-6 text-orange-500" /> How to earn?
             </h4>
-            <ul className="space-y-2 text-sm text-slate-300">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+            <ul className="space-y-4 text-xs font-bold text-white/60 uppercase tracking-widest">
+              <li className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                 1 point for every ₹10 spent
               </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              <li className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                 50% points back on cancellations
               </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              <li className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
                 Bonus points on daily streaks
               </li>
             </ul>
@@ -124,32 +127,38 @@ export default function Loyalty() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left: Redeem Rewards */}
         <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-slate-400" />
-            <h2 className="text-xl font-bold text-slate-900">Redeem Points</h2>
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-100 p-2 rounded-xl">
+              <Gift className="h-5 w-5 text-slate-400" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Redeem Points</h2>
           </div>
           <div className="grid grid-cols-1 gap-4">
             {rewards.map((reward) => (
-              <Card key={reward.id} className="border-slate-200 hover:border-orange-200 transition-colors group">
-                <CardContent className="p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-slate-100 p-3 rounded-xl group-hover:bg-orange-50 transition-colors">
-                      <ShoppingBag className="h-6 w-6 text-slate-600 group-hover:text-orange-600" />
+              <Card key={reward.id} className="border-slate-100 rounded-3xl hover:shadow-xl transition-all group overflow-hidden">
+                <CardContent className="p-6 flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-5">
+                    <div className="bg-slate-50 p-4 rounded-2xl group-hover:bg-orange-50 transition-colors">
+                      <ShoppingBag className="h-8 w-8 text-slate-400 group-hover:text-orange-600 transition-colors" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-900">{reward.title}</h4>
-                      <p className="text-xs text-slate-500">{reward.description}</p>
+                      <h4 className="font-black text-slate-900 tracking-tight text-lg">{reward.title}</h4>
+                      <p className="text-xs text-slate-500 font-medium">{reward.description}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900 mb-2">{reward.points} pts</p>
+                  <div className="text-right space-y-3">
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-widest">{reward.points} pts</p>
                     <Button 
                       size="sm" 
-                      variant={(profile?.loyaltyPoints ?? 0) >= reward.points ? "primary" : "outline"}
-                      className="rounded-full text-xs"
+                      className={cn(
+                        "rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px] transition-all",
+                        (profile?.loyaltyPoints ?? 0) >= reward.points 
+                          ? "bg-slate-900 text-white hover:bg-orange-600 shadow-lg" 
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      )}
                       disabled={isRedeeming !== null || (profile?.loyaltyPoints ?? 0) < reward.points}
                       onClick={() => handleRedeem(reward.id, reward.points, reward.title)}
                     >
@@ -164,32 +173,34 @@ export default function Loyalty() {
 
         {/* Right: Points History */}
         <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-slate-400" />
-            <h2 className="text-xl font-bold text-slate-900">Points History</h2>
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-100 p-2 rounded-xl">
+              <History className="h-5 w-5 text-slate-400" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Points History</h2>
           </div>
           <div className="space-y-3">
             {transactions.length === 0 ? (
-              <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                No history yet
+              <div className="text-center py-20 text-slate-400 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100">
+                <p className="font-black uppercase tracking-widest text-xs">No history yet</p>
               </div>
             ) : (
               transactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl">
-                  <div className="flex items-center gap-3">
+                <div key={tx.id} className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl hover:shadow-md transition-all group">
+                  <div className="flex items-center gap-4">
                     <div className={cn(
-                      "p-2 rounded-lg",
+                      "p-3 rounded-xl transition-transform group-hover:scale-110",
                       tx.type === "earned" ? "bg-green-50 text-green-600" : "bg-orange-50 text-orange-600"
                     )}>
-                      {tx.type === "earned" ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                      {tx.type === "earned" ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">{tx.description}</h4>
-                      <p className="text-[10px] text-slate-500">{format(new Date(tx.createdAt), "MMM d, yyyy")}</p>
+                      <h4 className="text-sm font-black text-slate-900 tracking-tight">{tx.description}</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{format(new Date(tx.date || tx.createdAt), "MMM d, yyyy")}</p>
                     </div>
                   </div>
                   <span className={cn(
-                    "font-bold",
+                    "font-black text-lg tracking-tighter",
                     tx.type === "earned" ? "text-green-600" : "text-orange-600"
                   )}>
                     {tx.type === "earned" ? "+" : "-"}{tx.points}
