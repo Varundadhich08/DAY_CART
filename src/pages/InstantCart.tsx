@@ -20,8 +20,7 @@ export default function InstantCart() {
 
   const deliveryCharge = subtotal >= 150 ? 0 : 25;
   const handlingCharge = 5;
-  const surgeCharge = 10;
-  const total = subtotal + deliveryCharge + handlingCharge + surgeCharge;
+  const total = subtotal + deliveryCharge + handlingCharge;
 
   const handleCheckout = async () => {
     if (totalItems === 0) return;
@@ -146,10 +145,6 @@ export default function InstantCart() {
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Handling Charge</span>
                   <span className="font-black text-slate-900">₹{handlingCharge}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Surge Charge</span>
-                  <span className="font-black text-slate-900">₹{surgeCharge}</span>
                 </div>
                 
                 <div className="h-px bg-slate-100 my-6" />
